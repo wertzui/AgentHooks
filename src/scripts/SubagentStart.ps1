@@ -2,26 +2,31 @@
 # This script is executed when a subagent is spawned.
 # Use it to inject context or initialize resources for the subagent.
 
-Add-Type -Path (Join-Path $PSScriptRoot "Types.cs") -ReferencedAssemblies @(
-    [System.Text.Json.JsonSerializer].Assembly.Location
-)
+Add-Type -Path (Join-Path $PSScriptRoot "Types.dll")
 
-$json = [Console]::In.ReadToEnd()
-$inputJson = [SubagentStartInput]::FromJson($json)
-$output = [SubagentStartOutput]::new()
+$ErrorActionPreference = "Stop"
 
-# =========================================
-# DO NOT MODIFY ANYTHING ABOVE THIS LINE.
-# YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
-# =========================================
+try {
+    $json = $input | Out-String
+    $in = [SubagentStartInput]::FromJson($json)
+    $out = [SubagentStartOutput]::new()
 
-$output = [SubagentStartOutput]@{
-    AdditionalContext = "Subagent '$($inputJson.AgentType)' initiated."
+    # =========================================
+    # DO NOT MODIFY ANYTHING ABOVE THIS LINE.
+    # YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
+    # =========================================
+    $logFile = Join-Path $PSScriptRoot "hooks.log"
+    $logEntry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($in.HookEventName)]`nraw`n$($json)`ndeserialized`n$($in | ConvertTo-Json -Depth 10 -Compress)"
+    Add-Content -Path $logFile -Value $logEntry
+
+    # =========================================
+    # DO NOT MODIFY ANYTHING BELOW THIS LINE.
+    # YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
+    # =========================================
+
+    $out.ToJson() | Write-Output
 }
-
-# =========================================
-# DO NOT MODIFY ANYTHING BELOW THIS LINE.
-# YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
-# =========================================
-
-$output.ToJson() | Write-Output
+catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 2
+}

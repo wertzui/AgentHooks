@@ -2,31 +2,32 @@
 # This script is executed by the VS Code Agent system after any tool completes successfully.
 # Use it to run formatters, log results, or inject additional context into the conversation.
 
-Add-Type -Path (Join-Path $PSScriptRoot "Types.cs") -ReferencedAssemblies @(
-    [System.Text.Json.JsonSerializer].Assembly.Location
-)
+Add-Type -Path (Join-Path $PSScriptRoot "Types.dll")
 
-$json = [Console]::In.ReadToEnd()
-$inputJson = [PostToolUseInput]::FromJson($json)
-$output = [PostToolUseOutput]::new()
+$ErrorActionPreference = "Stop"
 
-# =========================================
-# DO NOT MODIFY ANYTHING ABOVE THIS LINE.
-# YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
-# =========================================
+try {
+    $json = $input | Out-String
+    $in = [PostToolUseInput]::FromJson($json)
+    $out = [PostToolUseOutput]::new()
 
-# Example logic: Block further processing if the tool returned an error.
-if ($inputJson.ToolResponse -match "error") {
-    $output = [PostToolUseOutput]@{
-        Decision          = [DecisionType]::Block
-        Reason            = "Tool execution failed."
-        AdditionalContext = "The tool returned an error: $($inputJson.ToolResponse)"
-    }
+    # =========================================
+    # DO NOT MODIFY ANYTHING ABOVE THIS LINE.
+    # YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
+    # =========================================
+
+    $logFile = Join-Path $PSScriptRoot "hooks.log"
+    $logEntry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($in.HookEventName)]`nraw`n$($json)`ndeserialized`n$($in | ConvertTo-Json -Depth 10 -Compress)"
+    Add-Content -Path $logFile -Value $logEntry
+
+    # =========================================
+    # DO NOT MODIFY ANYTHING BELOW THIS LINE.
+    # YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
+    # =========================================
+
+    $out.ToJson() | Write-Output
 }
-
-# =========================================
-# DO NOT MODIFY ANYTHING BELOW THIS LINE.
-# YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
-# =========================================
-
-$output.ToJson() | Write-Output
+catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 2
+}

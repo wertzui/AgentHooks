@@ -3,28 +3,32 @@
 # Return Decision = Block to prevent the agent from stopping (e.g., to run tests first).
 # Always check StopHookActive to prevent the agent from running indefinitely.
 
-Add-Type -Path (Join-Path $PSScriptRoot "Types.cs") -ReferencedAssemblies @(
-    [System.Text.Json.JsonSerializer].Assembly.Location
-)
+Add-Type -Path (Join-Path $PSScriptRoot "Types.dll")
 
-$json = [Console]::In.ReadToEnd()
-$inputJson = [StopInput]::FromJson($json)
-$output = [StopOutput]::new()
+$ErrorActionPreference = "Stop"
 
-# =========================================
-# DO NOT MODIFY ANYTHING ABOVE THIS LINE.
-# YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
-# =========================================
+try {
+    $json = $input | Out-String
+    $in = [StopInput]::FromJson($json)
+    $out = [StopOutput]::new()
 
-# Example logic: Allow the agent to stop unconditionally.
-# To block (only when not already looping):
-# if (-not $inputJson.StopHookActive) {
-#     $output = [StopOutput]@{ Decision = [DecisionType]::Block; Reason = "Run the test suite first." }
-# }
+    # =========================================
+    # DO NOT MODIFY ANYTHING ABOVE THIS LINE.
+    # YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
+    # =========================================
 
-# =========================================
-# DO NOT MODIFY ANYTHING BELOW THIS LINE.
-# YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
-# =========================================
+    $logFile = Join-Path $PSScriptRoot "hooks.log"
+    $logEntry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($in.HookEventName)]`nraw`n$($json)`ndeserialized`n$($in | ConvertTo-Json -Depth 10 -Compress)"
+    Add-Content -Path $logFile -Value $logEntry
 
-$output.ToJson() | Write-Output
+    # =========================================
+    # DO NOT MODIFY ANYTHING BELOW THIS LINE.
+    # YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
+    # =========================================
+
+    $out.ToJson() | Write-Output
+}
+catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 2
+}

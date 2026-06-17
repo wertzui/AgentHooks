@@ -2,25 +2,32 @@
 # This script is executed before the conversation context is compacted.
 # Use it to export important context or save state before truncation.
 
-Add-Type -Path (Join-Path $PSScriptRoot "Types.cs") -ReferencedAssemblies @(
-    [System.Text.Json.JsonSerializer].Assembly.Location
-)
+Add-Type -Path (Join-Path $PSScriptRoot "Types.dll")
 
-$json = [Console]::In.ReadToEnd()
-$inputJson = [PreCompactInput]::FromJson($json)
-$output = [CommonOutput]::new()
+$ErrorActionPreference = "Stop"
 
-# =========================================
-# DO NOT MODIFY ANYTHING ABOVE THIS LINE.
-# YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
-# =========================================
+try {
+    $json = $input | Out-String
+    $in = [PreCompactInput]::FromJson($json)
+    $out = [PreCompactOutput]::new()
 
-# Example logic: Allow compaction to proceed.
-# To block: $output = [CommonOutput]@{ Continue = $false; StopReason = "Export not complete." }
+    # =========================================
+    # DO NOT MODIFY ANYTHING ABOVE THIS LINE.
+    # YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
+    # =========================================
 
-# =========================================
-# DO NOT MODIFY ANYTHING BELOW THIS LINE.
-# YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
-# =========================================
+    $logFile = Join-Path $PSScriptRoot "hooks.log"
+    $logEntry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($in.HookEventName)]`nraw`n$($json)`ndeserialized`n$($in | ConvertTo-Json -Depth 10 -Compress)"
+    Add-Content -Path $logFile -Value $logEntry
 
-$output.ToJson() | Write-Output
+    # =========================================
+    # DO NOT MODIFY ANYTHING BELOW THIS LINE.
+    # YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
+    # =========================================
+
+    $out.ToJson() | Write-Output
+}
+catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 2
+}

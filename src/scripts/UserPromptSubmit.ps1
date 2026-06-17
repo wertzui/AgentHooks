@@ -2,30 +2,32 @@
 # This script is executed by the VS Code Agent system when the user submits a prompt.
 # Use it to audit user requests, inject system context, or block disallowed prompts.
 
-Add-Type -Path (Join-Path $PSScriptRoot "Types.cs") -ReferencedAssemblies @(
-    [System.Text.Json.JsonSerializer].Assembly.Location
-)
+Add-Type -Path (Join-Path $PSScriptRoot "Types.dll")
 
-$json = [Console]::In.ReadToEnd()
-$inputJson = [UserPromptSubmitInput]::FromJson($json)
-$output = [CommonOutput]::new()
+$ErrorActionPreference = "Stop"
 
-# =========================================
-# DO NOT MODIFY ANYTHING ABOVE THIS LINE.
-# YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
-# =========================================
+try {
+    $json = $input | Out-String
+    $in = [UserPromptSubmitInput]::FromJson($json)
+    $out = [UserPromptSubmitOutput]::new()
 
-# Example logic: Block prompts that request destructive operations.
-# if ($inputJson.Prompt -match "drop table|rm -rf") {
-#     $output = [CommonOutput]@{
-#         Continue   = $false
-#         StopReason = "Disallowed prompt content detected."
-#     }
-# }
+    # =========================================
+    # DO NOT MODIFY ANYTHING ABOVE THIS LINE.
+    # YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
+    # =========================================
 
-# =========================================
-# DO NOT MODIFY ANYTHING BELOW THIS LINE.
-# YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
-# =========================================
+    $logFile = Join-Path $PSScriptRoot "hooks.log"
+    $logEntry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($in.HookEventName)]`nraw`n$($json)`ndeserialized`n$($in | ConvertTo-Json -Depth 10 -Compress)"
+    Add-Content -Path $logFile -Value $logEntry
 
-$output.ToJson() | Write-Output
+    # =========================================
+    # DO NOT MODIFY ANYTHING BELOW THIS LINE.
+    # YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
+    # =========================================
+
+    $out.ToJson() | Write-Output
+}
+catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 2
+}

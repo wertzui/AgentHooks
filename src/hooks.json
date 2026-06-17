@@ -1,9 +1,59 @@
 {
 	"hooks": {
+		"PreToolUse": [
+			{
+				"type": "command",
+				"command": "pwsh -NoProfile -NonInteractive -File ./scripts/PreToolUse.ps1",
+				"cwd": "~\\.copilot\\hooks"
+			}
+		],
+		"PostToolUse": [
+			{
+				"type": "command",
+				"command": "pwsh -NoProfile -NonInteractive -File ./scripts/PostToolUse.ps1",
+				"cwd": "~\\.copilot\\hooks"
+			}
+		],
+		"UserPromptSubmit": [
+			{
+				"type": "command",
+				"command": "pwsh -NoProfile -NonInteractive -File ./scripts/UserPromptSubmit.ps1",
+				"cwd": "~\\.copilot\\hooks"
+			}
+		],
+		"SessionStart": [
+			{
+				"type": "command",
+				"command": "pwsh -NoProfile -NonInteractive -File ./scripts/SessionStart.ps1",
+				"cwd": "~\\.copilot\\hooks"
+			}
+		],
 		"Stop": [
 			{
 				"type": "command",
-				"command": ""
+				"command": "pwsh -NoProfile -NonInteractive -File ./scripts/Stop.ps1",
+				"cwd": "~\\.copilot\\hooks"
+			}
+		],
+		"SubagentStart": [
+			{
+				"type": "command",
+				"command": "pwsh -NoProfile -NonInteractive -File ./scripts/SubagentStart.ps1",
+				"cwd": "~\\.copilot\\hooks"
+			}
+		],
+		"SubagentStop": [
+			{
+				"type": "command",
+				"command": "pwsh -NoProfile -NonInteractive -File ./scripts/SubagentStop.ps1",
+				"cwd": "~\\.copilot\\hooks"
+			}
+		],
+		"PreCompact": [
+			{
+				"type": "command",
+				"command": "pwsh -NoProfile -NonInteractive -File ./scripts/PreCompact.ps1",
+				"cwd": "~\\.copilot\\hooks"
 			}
 		]
 	}

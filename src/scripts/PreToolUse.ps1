@@ -3,37 +3,32 @@
 # It allows for intercepting, validating, or modifying the tool's input parameters 
 # (e.g., checking for dangerous commands or providing additional context).
 
-Add-Type -Path (Join-Path $PSScriptRoot "Types.cs") -ReferencedAssemblies @(
-    [System.Text.Json.JsonSerializer].Assembly.Location
-)
+Add-Type -Path (Join-Path $PSScriptRoot "Types.dll")
 
-$json = [Console]::In.ReadToEnd()
-$inputJson = [PreToolUseInput]::FromJson($json)
-$output = [PreToolUseOutput]::new()
+$ErrorActionPreference = "Stop"
 
-# =========================================
-# DO NOT MODIFY ANYTHING ABOVE THIS LINE.
-# YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
-# =========================================
+try {
+    $json = $input | Out-String
+    $in = [PreToolUseInput]::FromJson($json)
+    $out = [PreToolUseOutput]::new()
 
-# Example logic: Check if the tool is 'editFiles' and block if it contains "rm" or "delete" in the input.
-if ($inputJson.ToolName -eq "editFiles") {
-    if ($inputJson.ToolInput["content"] -match "rm|delete|drop") {
-        $output = [PreToolUseOutput]@{
-            PermissionDecision       = [PermissionDecisionType]::Deny
-            PermissionDecisionReason = "Potential destructive command detected in content."
-        }
-    }
-    else {
-        $output = [PreToolUseOutput]@{
-            PermissionDecision = [PermissionDecisionType]::Allow
-        }
-    }
+    # =========================================
+    # DO NOT MODIFY ANYTHING ABOVE THIS LINE.
+    # YOUR CUSTOM LOGIC GOES BELOW THIS LINE.
+    # =========================================
+
+    $logFile = Join-Path $PSScriptRoot "hooks.log"
+    $logEntry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($in.HookEventName)]`nraw`n$($json)`ndeserialized`n$($in | ConvertTo-Json -Depth 10 -Compress)"
+    Add-Content -Path $logFile -Value $logEntry
+
+    # =========================================
+    # DO NOT MODIFY ANYTHING BELOW THIS LINE.
+    # YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
+    # =========================================
+
+    $out.ToJson() | Write-Output
 }
-
-# =========================================
-# DO NOT MODIFY ANYTHING BELOW THIS LINE.
-# YOUR CUSTOM LOGIC GOES ABOVE THIS LINE.
-# =========================================
-
-$output.ToJson() | Write-Output
+catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 2
+}

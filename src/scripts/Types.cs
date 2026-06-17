@@ -1,3 +1,8 @@
+#:property OutputType=library
+#:property TargetFramework=net10.0
+#:property PublishAot=false
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,12 +43,6 @@ public record CommonInput
     /// Prefer the documented hook input fields (tool_name, tool_input, prompt, and so on) whenever possible.
     /// </remarks>
     public string? TranscriptPath { get; init; }
-
-    /// <summary>Deserializes a <see cref="CommonInput"/> from a JSON string.</summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized <see cref="CommonInput"/> instance.</returns>
-    public static CommonInput FromJson(string json) =>
-        JsonSerializer.Deserialize<CommonInput>(json, HookJsonOptions.Default)!;
 }
 
 /// <summary>
@@ -52,9 +51,9 @@ public record CommonInput
 public record CommonOutput
 {
     /// <summary>
-    /// Set to false to stop processing (default: true).
+    /// Set to false to stop processing. Omitted from the output when null (VS Code defaults to true).
     /// </summary>
-    public bool Continue { get; init; } = true;
+    public bool? Continue { get; init; }
 
     /// <summary>
     /// Reason for stopping, shown to the user when continue is false.
@@ -65,12 +64,19 @@ public record CommonOutput
     /// Warning message displayed to the user in the chat.
     /// </summary>
     public string? SystemMessage { get; init; }
+}
 
-    /// <summary>Deserializes a <see cref="CommonOutput"/> from a JSON string.</summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized <see cref="CommonOutput"/> instance.</returns>
-    public static CommonOutput FromJson(string json) =>
-        JsonSerializer.Deserialize<CommonOutput>(json, HookJsonOptions.Default)!;
+/// <summary>
+/// Represents specific output for a PreToolUse hook.
+/// </summary>
+public record PreToolUseOutput : CommonOutput
+{
+    /// <summary>
+    /// The event-specific output payload nested under <c>hookSpecificOutput</c>.
+    /// Omitted from the output when null so a no-op hook does not override VS Code's default approval flow.
+    /// </summary>
+    public PreToolUseHookSpecificOutput? HookSpecificOutput { get; init; }
+
 
     /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
     /// <returns>A JSON string representation of this instance.</returns>
@@ -78,14 +84,19 @@ public record CommonOutput
 }
 
 /// <summary>
-/// Represents specific output for a PreToolUse hook.
+/// Represents the <c>hookSpecificOutput</c> payload for a PreToolUse hook.
 /// </summary>
-public record PreToolUseOutput
+public record PreToolUseHookSpecificOutput
 {
     /// <summary>
-    /// The decision to allow, deny, or ask for tool approval.
+    /// Name of the hook event. Always "PreToolUse".
     /// </summary>
-    public PermissionDecisionType PermissionDecision { get; init; } = PermissionDecisionType.Allow;
+    public string HookEventName => nameof(HookType.PreToolUse);
+
+    /// <summary>
+    /// The decision to allow, deny, or ask for tool approval. Omitted from the output when null.
+    /// </summary>
+    public PermissionDecisionType? PermissionDecision { get; init; }
 
     /// <summary>
     /// Reason shown to user for the permission decision.
@@ -101,22 +112,12 @@ public record PreToolUseOutput
     /// Extra context for the model.
     /// </summary>
     public string? AdditionalContext { get; init; }
-
-    /// <summary>Deserializes a <see cref="PreToolUseOutput"/> from a JSON string.</summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized <see cref="PreToolUseOutput"/> instance.</returns>
-    public static PreToolUseOutput FromJson(string json) =>
-        JsonSerializer.Deserialize<PreToolUseOutput>(json, HookJsonOptions.Default)!;
-
-    /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
-    /// <returns>A JSON string representation of this instance.</returns>
-    public string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
 }
 
 /// <summary>
 /// Represents specific output for a PostToolUse hook.
 /// </summary>
-public record PostToolUseOutput
+public record PostToolUseOutput : CommonOutput
 {
     /// <summary>
     /// Block further processing (optional).
@@ -129,19 +130,30 @@ public record PostToolUseOutput
     public string? Reason { get; init; }
 
     /// <summary>
-    /// Extra context injected into the conversation.
+    /// The event-specific output payload nested under <c>hookSpecificOutput</c>.
+    /// Omitted from the output when null.
     /// </summary>
-    public string? AdditionalContext { get; init; }
-
-    /// <summary>Deserializes a <see cref="PostToolUseOutput"/> from a JSON string.</summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized <see cref="PostToolUseOutput"/> instance.</returns>
-    public static PostToolUseOutput FromJson(string json) =>
-        JsonSerializer.Deserialize<PostToolUseOutput>(json, HookJsonOptions.Default)!;
+    public PostToolUseHookSpecificOutput? HookSpecificOutput { get; init; }
 
     /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
     /// <returns>A JSON string representation of this instance.</returns>
     public string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
+}
+
+/// <summary>
+/// Represents the <c>hookSpecificOutput</c> payload for a PostToolUse hook.
+/// </summary>
+public record PostToolUseHookSpecificOutput
+{
+    /// <summary>
+    /// Name of the hook event. Always "PostToolUse".
+    /// </summary>
+    public string HookEventName => nameof(HookType.PostToolUse);
+
+    /// <summary>
+    /// Extra context injected into the conversation.
+    /// </summary>
+    public string? AdditionalContext { get; init; }
 }
 
 /// <summary>
@@ -150,19 +162,30 @@ public record PostToolUseOutput
 public record SessionStartOutput : CommonOutput
 {
     /// <summary>
-    /// Context injected into the agent's conversation at the start of the session.
+    /// The event-specific output payload nested under <c>hookSpecificOutput</c>.
+    /// Omitted from the output when null.
     /// </summary>
-    public string? AdditionalContext { get; init; }
-
-    /// <summary>Deserializes a <see cref="SessionStartOutput"/> from a JSON string.</summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized <see cref="SessionStartOutput"/> instance.</returns>
-    public static SessionStartOutput FromJson(string json) =>
-        JsonSerializer.Deserialize<SessionStartOutput>(json, HookJsonOptions.Default)!;
+    public SessionStartHookSpecificOutput? HookSpecificOutput { get; init; }
 
     /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
     /// <returns>A JSON string representation of this instance.</returns>
-    public new string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
+    public string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
+}
+
+/// <summary>
+/// Represents the <c>hookSpecificOutput</c> payload for a SessionStart hook.
+/// </summary>
+public record SessionStartHookSpecificOutput
+{
+    /// <summary>
+    /// Name of the hook event. Always "SessionStart".
+    /// </summary>
+    public string HookEventName => nameof(HookType.SessionStart);
+
+    /// <summary>
+    /// Context injected into the agent's conversation at the start of the session.
+    /// </summary>
+    public string? AdditionalContext { get; init; }
 }
 
 /// <summary>
@@ -171,19 +194,51 @@ public record SessionStartOutput : CommonOutput
 public record SubagentStartOutput : CommonOutput
 {
     /// <summary>
-    /// Context injected into the subagent's conversation.
+    /// The event-specific output payload nested under <c>hookSpecificOutput</c>.
+    /// Omitted from the output when null.
     /// </summary>
-    public string? AdditionalContext { get; init; }
-
-    /// <summary>Deserializes a <see cref="SubagentStartOutput"/> from a JSON string.</summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized <see cref="SubagentStartOutput"/> instance.</returns>
-    public static SubagentStartOutput FromJson(string json) =>
-        JsonSerializer.Deserialize<SubagentStartOutput>(json, HookJsonOptions.Default)!;
+    public SubagentStartHookSpecificOutput? HookSpecificOutput { get; init; }
 
     /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
     /// <returns>A JSON string representation of this instance.</returns>
-    public new string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
+    public string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
+}
+
+/// <summary>
+/// Represents the <c>hookSpecificOutput</c> payload for a SubagentStart hook.
+/// </summary>
+public record SubagentStartHookSpecificOutput
+{
+    /// <summary>
+    /// Name of the hook event. Always "SubagentStart".
+    /// </summary>
+    public string HookEventName => nameof(HookType.SubagentStart);
+
+    /// <summary>
+    /// Context injected into the subagent's conversation.
+    /// </summary>
+    public string? AdditionalContext { get; init; }
+}
+
+/// <summary>
+/// Represents output for a SubagentStop hook.
+/// </summary>
+public record SubagentStopOutput : CommonOutput
+{
+    /// <summary>
+    /// Set to <see cref="DecisionType.Block"/> to prevent the subagent from stopping.
+    /// Always check <see cref="SubagentStopInput.StopHookActive"/> before blocking to avoid infinite loops.
+    /// </summary>
+    public DecisionType? Decision { get; init; }
+
+    /// <summary>
+    /// Required when <see cref="Decision"/> is <see cref="DecisionType.Block"/>. Tells the subagent why it should continue.
+    /// </summary>
+    public string? Reason { get; init; }
+
+    /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
+    /// <returns>A JSON string representation of this instance.</returns>
+    public string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
 }
 
 /// <summary>
@@ -192,8 +247,28 @@ public record SubagentStartOutput : CommonOutput
 public record StopOutput : CommonOutput
 {
     /// <summary>
+    /// The event-specific output payload nested under <c>hookSpecificOutput</c>.
+    /// Omitted from the output when null.
+    /// </summary>
+    public StopHookSpecificOutput? HookSpecificOutput { get; init; }
+
+    /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
+    /// <returns>A JSON string representation of this instance.</returns>
+    public string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
+}
+
+/// <summary>
+/// Represents the <c>hookSpecificOutput</c> payload for a Stop hook.
+/// </summary>
+public record StopHookSpecificOutput
+{
+    /// <summary>
+    /// Name of the hook event. Always "Stop".
+    /// </summary>
+    public string HookEventName => nameof(HookType.Stop);
+
+    /// <summary>
     /// Set to <see cref="DecisionType.Block"/> to prevent the agent from stopping.
-    /// Always check <see cref="StopInput.StopHookActive"/> before blocking to avoid infinite loops.
     /// </summary>
     public DecisionType? Decision { get; init; }
 
@@ -201,16 +276,6 @@ public record StopOutput : CommonOutput
     /// Required when <see cref="Decision"/> is <see cref="DecisionType.Block"/>. Tells the agent why it should continue.
     /// </summary>
     public string? Reason { get; init; }
-
-    /// <summary>Deserializes a <see cref="StopOutput"/> from a JSON string.</summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized <see cref="StopOutput"/> instance.</returns>
-    public static StopOutput FromJson(string json) =>
-        JsonSerializer.Deserialize<StopOutput>(json, HookJsonOptions.Default)!;
-
-    /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
-    /// <returns>A JSON string representation of this instance.</returns>
-    public new string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
 }
 
 /// <summary>
@@ -224,9 +289,11 @@ public record PreToolUseInput : CommonInput
     public string ToolName { get; init; } = string.Empty;
 
     /// <summary>
-    /// The input provided to the tool.
+    /// The input provided to the tool as a property bag.
+    /// Keys are the tool input property names exactly as sent by VS Code (camelCase, for example <c>filePath</c>),
+    /// not snake_case. Nested objects become nested dictionaries; arrays become lists.
     /// </summary>
-    public object? ToolInput { get; init; }
+    public Dictionary<string, object?>? ToolInput { get; init; }
 
     /// <summary>
     /// Unique identifier for the tool use.
@@ -251,7 +318,9 @@ public record PostToolUseInput : CommonInput
     public string ToolName { get; init; } = string.Empty;
 
     /// <summary>
-    /// The input provided to the tool as a property bag. Keys match the original JSON property names.
+    /// The input provided to the tool as a property bag.
+    /// Keys are the tool input property names exactly as sent by VS Code (camelCase, for example <c>filePath</c>),
+    /// not snake_case. Nested objects become nested dictionaries; arrays become lists.
     /// </summary>
     public Dictionary<string, object?>? ToolInput { get; init; }
 
@@ -270,6 +339,16 @@ public record PostToolUseInput : CommonInput
     /// <returns>The deserialized <see cref="PostToolUseInput"/> instance.</returns>
     public static PostToolUseInput FromJson(string json) =>
         JsonSerializer.Deserialize<PostToolUseInput>(json, HookJsonOptions.Default)!;
+}
+
+/// <summary>
+/// Represents output for a UserPromptSubmit hook.
+/// </summary>
+public record UserPromptSubmitOutput : CommonOutput
+{
+    /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
+    /// <returns>A JSON string representation of this instance.</returns>
+    public string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
 }
 
 /// <summary>
@@ -373,10 +452,25 @@ public record SubagentStopInput : CommonInput
 }
 
 /// <summary>
+/// Represents output for a PreCompact hook.
+/// </summary>
+public record PreCompactOutput : CommonOutput
+{
+    /// <summary>Serializes this instance to a JSON string using camelCase property names.</summary>
+    /// <returns>A JSON string representation of this instance.</returns>
+    public string ToJson() => JsonSerializer.Serialize(this, HookJsonOptions.Output);
+}
+
+/// <summary>
 /// Represents input for a PreCompact hook.
 /// </summary>
 public record PreCompactInput : CommonInput
 {
+    /// <summary>
+    /// How the compaction was triggered. "auto" when the conversation is too long for the prompt budget.
+    /// </summary>
+    public string Trigger { get; init; } = "auto";
+
     /// <summary>Deserializes a <see cref="PreCompactInput"/> from a JSON string.</summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized <see cref="PreCompactInput"/> instance.</returns>
@@ -395,15 +489,17 @@ internal static class HookJsonOptions
     public static readonly JsonSerializerOptions Default = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower), new JsonDictionaryConverter() }
+        Converters = { new JsonDictionaryConverter() }
     };
 
     /// <summary>
-    /// Options configured with camelCase property names and lowercase enum values, used for serializing hook outputs.
+    /// Options configured with camelCase property names and camelCase enum values, used for serializing hook outputs.
+    /// Null properties are omitted so that no-op hooks emit minimal JSON and do not override VS Code defaults.
     /// </summary>
     public static readonly JsonSerializerOptions Output = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 }
@@ -460,16 +556,13 @@ public enum PermissionDecisionType
 }
 
 /// <summary>
-/// Represents the decision to block or continue processing in a PostToolUse hook.
+/// Represents the decision in a PostToolUse, Stop, or SubagentStop hook.
+/// The only documented value is <see cref="Block"/>; leave the decision null to take no action.
 /// </summary>
 public enum DecisionType
 {
     /// <summary>
-    /// Continue processing as normal.
-    /// </summary>
-    Continue,
-    /// <summary>
-    /// Block further processing.
+    /// Block further processing (PostToolUse) or prevent stopping (Stop/SubagentStop).
     /// </summary>
     Block
 }
